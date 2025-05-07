@@ -1,0 +1,1 @@
+[Посмотреть видео](https://drive.google.com/file/d/1uRMotSK0nbweXcuxvxxO7PeNgYpDgKIq/view?usp=sharing)

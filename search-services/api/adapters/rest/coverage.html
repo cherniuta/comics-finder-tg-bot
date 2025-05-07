@@ -1,0 +1,466 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>rest: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">yadro.com/course/api/adapters/rest/api.go (6.0%)</option>
+				
+				<option value="file1">yadro.com/course/api/adapters/rest/middleware/auth.go (0.0%)</option>
+				
+				<option value="file2">yadro.com/course/api/adapters/rest/middleware/concurrency.go (0.0%)</option>
+				
+				<option value="file3">yadro.com/course/api/adapters/rest/middleware/rate.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package rest
+
+import (
+        "encoding/json"
+        "errors"
+        "log/slog"
+        "net/http"
+        "strconv"
+
+        "yadro.com/course/api/core"
+)
+
+type PingResponse struct {
+        Replies map[string]string `json:"replies"`
+}
+
+func NewPingHandler(log *slog.Logger, pingers map[string]core.Pinger) http.HandlerFunc <span class="cov0" title="0">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                var response PingResponse
+                response.Replies = make(map[string]string)
+
+                for name, address := range pingers </span><span class="cov0" title="0">{
+                        err := address.Ping(r.Context())
+                        if err == nil </span><span class="cov0" title="0">{
+                                response.Replies[name] = "ok"
+
+                        }</span> else<span class="cov0" title="0"> {
+                                response.Replies[name] = "unavailable"
+                        }</span>
+
+                }
+
+                <span class="cov0" title="0">w.Header().Set("Content-Type", "application/json")
+                if err := json.NewEncoder(w).Encode(response); err != nil </span><span class="cov0" title="0">{
+                        log.Error("cannot encode reply", "error", err)
+                        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+                        return
+                }</span>
+
+        }
+}
+
+type Authenticator interface {
+        Login(user, password string) (string, error)
+}
+
+type Login struct {
+        Name     string `json:"name"`
+        Password string `json:"password"`
+}
+
+func NewLoginHandler(log *slog.Logger, auth Authenticator) http.HandlerFunc <span class="cov0" title="0">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                var login Login
+                if err := json.NewDecoder(r.Body).Decode(&amp;login); err != nil </span><span class="cov0" title="0">{
+                        log.Error("could not decode login form", "error", err)
+                        http.Error(w, "could not parse login data", http.StatusBadRequest)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">t, err := auth.Login(login.Name, login.Password)
+                if err != nil </span><span class="cov0" title="0">{
+                        if errors.Is(err, core.ErrBadCredentials) </span><span class="cov0" title="0">{
+                                http.Error(w, err.Error(), http.StatusUnauthorized)
+                                return
+                        }</span>
+                        <span class="cov0" title="0">http.Error(w, err.Error(), http.StatusInternalServerError)
+                        return</span>
+                }
+
+                <span class="cov0" title="0">if _, err := w.Write([]byte(t)); err != nil </span><span class="cov0" title="0">{
+                        log.Error("cannot encode reply", "error", err)
+                }</span>
+
+        }
+}
+
+func NewUpdateHandler(log *slog.Logger, updater core.Updater) http.HandlerFunc <span class="cov0" title="0">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+
+                err := updater.Update(r.Context())
+                if err != nil </span><span class="cov0" title="0">{
+                        if errors.Is(err, core.ErrAlreadyExists) </span><span class="cov0" title="0">{
+
+                                http.Error(w, err.Error(), http.StatusAccepted)
+                                return
+                        }</span>
+                        <span class="cov0" title="0">http.Error(w, err.Error(), http.StatusInternalServerError)
+                        return</span>
+
+                }
+
+        }
+}
+
+type StatsResponse struct {
+        WordsTotal    int `json:"words_total"`
+        WordsUnique   int `json:"words_unique"`
+        ComicsFetched int `json:"comics_fetched"`
+        ComicsTotal   int `json:"comics_total"`
+}
+
+func NewUpdateStatsHandler(log *slog.Logger, updater core.Updater) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                res, err := updater.Stats(r.Context())
+                if err != nil </span><span class="cov8" title="1">{
+                        http.Error(w, err.Error(), http.StatusInternalServerError)
+                        return
+                }</span>
+
+                <span class="cov8" title="1">response := StatsResponse{
+                        WordsTotal:    res.WordsTotal,
+                        WordsUnique:   res.WordsUnique,
+                        ComicsFetched: res.ComicsFetched,
+                        ComicsTotal:   res.ComicsTotal}
+
+                w.Header().Set("Content-Type", "application/json")
+                if err := json.NewEncoder(w).Encode(response); err != nil </span><span class="cov0" title="0">{
+                        log.Error("cannot encode reply", "error", err)
+                        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+                        return
+                }</span>
+        }
+
+}
+
+type StatusResponse struct {
+        Status string `json:"status"`
+}
+
+func NewUpdateStatusHandler(log *slog.Logger, updater core.Updater) http.HandlerFunc <span class="cov0" title="0">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                res, err := updater.Status(r.Context())
+                if err != nil </span><span class="cov0" title="0">{
+                        http.Error(w, err.Error(), http.StatusInternalServerError)
+                        return
+                }</span>
+                <span class="cov0" title="0">response := StatusResponse{Status: string(res)}
+
+                w.Header().Set("Content-Type", "application/json")
+                if err := json.NewEncoder(w).Encode(response); err != nil </span><span class="cov0" title="0">{
+                        log.Error("cannot encode reply", "error", err)
+                        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+                        return
+                }</span>
+
+        }
+}
+
+func NewDropHandler(log *slog.Logger, updater core.Updater) http.HandlerFunc <span class="cov0" title="0">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                err := updater.Drop(r.Context())
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Error("problems with the deleting data", "error", err)
+                        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+                }</span>
+
+        }
+}
+
+type Comics struct {
+        Id  int    `json:"id"`
+        Url string `json:"url"`
+}
+type SearchResponse struct {
+        Comics []Comics `json:"comics"`
+        Total  int      `json:"total"`
+}
+
+const defaultLimit = 10
+
+func NewSearchHandler(log *slog.Logger, searcher core.Searcher) http.HandlerFunc <span class="cov0" title="0">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                var (
+                        limit int
+                        err   error
+                )
+                limitStr := r.URL.Query().Get("limit")
+                if limitStr != "" </span><span class="cov0" title="0">{
+                        limit, err = strconv.Atoi(limitStr)
+                        if err != nil </span><span class="cov0" title="0">{
+                                log.Error("wrong limit", "value", limitStr)
+                                http.Error(w, "bad limit", http.StatusBadRequest)
+                                return
+                        }</span>
+                        <span class="cov0" title="0">if limit &lt; 0 </span><span class="cov0" title="0">{
+                                log.Error("wrong limit", "value", limitStr)
+                                http.Error(w, "bad limit", http.StatusBadRequest)
+                                return
+                        }</span>
+
+                } else<span class="cov0" title="0"> {
+                        limit = defaultLimit
+                }</span>
+                <span class="cov0" title="0">phrase := r.URL.Query().Get("phrase")
+                if phrase == "" </span><span class="cov0" title="0">{
+                        log.Error("no phrase")
+                        http.Error(w, "no phrase", http.StatusBadRequest)
+                        return
+                }</span>
+                <span class="cov0" title="0">comics, err := searcher.Search(r.Context(), phrase, limit)
+                if err != nil </span><span class="cov0" title="0">{
+                        if errors.Is(err, core.ErrNotFound) </span><span class="cov0" title="0">{
+                                http.Error(w, "no comics found", http.StatusNotFound)
+                                return
+                        }</span>
+                        <span class="cov0" title="0">log.Error("problems finding comics", "error", err)
+                        http.Error(w, err.Error(), http.StatusInternalServerError)
+                        return</span>
+                }
+
+                <span class="cov0" title="0">response := SearchResponse{
+                        Comics: make([]Comics, 0),
+                        Total:  len(comics),
+                }
+
+                for _, item := range comics </span><span class="cov0" title="0">{
+                        response.Comics = append(response.Comics, Comics{Id: item.ID, Url: item.URL})
+                }</span>
+
+                <span class="cov0" title="0">w.Header().Set("Content-Type", "application/json")
+                if err := json.NewEncoder(w).Encode(response); err != nil </span><span class="cov0" title="0">{
+                        log.Error("cannot encode reply", "error", err)
+                        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+                        return
+                }</span>
+
+        }
+}
+
+func NewSearchIndexHandler(log *slog.Logger, searcher core.Searcher) http.HandlerFunc <span class="cov0" title="0">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                var (
+                        limit int
+                        err   error
+                )
+                limitStr := r.URL.Query().Get("limit")
+                if limitStr != "" </span><span class="cov0" title="0">{
+                        limit, err = strconv.Atoi(limitStr)
+                        if err != nil </span><span class="cov0" title="0">{
+                                log.Error("wrong limit", "value", limitStr)
+                                http.Error(w, "bad limit", http.StatusBadRequest)
+                                return
+                        }</span>
+                        <span class="cov0" title="0">if limit &lt; 0 </span><span class="cov0" title="0">{
+                                log.Error("wrong limit", "value", limitStr)
+                                http.Error(w, "bad limit", http.StatusBadRequest)
+                                return
+                        }</span>
+
+                } else<span class="cov0" title="0"> {
+                        limit = defaultLimit
+                }</span>
+                <span class="cov0" title="0">phrase := r.URL.Query().Get("phrase")
+                if phrase == "" </span><span class="cov0" title="0">{
+                        log.Error("no phrase")
+                        http.Error(w, "no phrase", http.StatusBadRequest)
+                        return
+                }</span>
+                <span class="cov0" title="0">comics, err := searcher.Search(r.Context(), phrase, limit)
+                if err != nil </span><span class="cov0" title="0">{
+                        if errors.Is(err, core.ErrNotFound) </span><span class="cov0" title="0">{
+                                http.Error(w, "no comics found", http.StatusNotFound)
+                                return
+                        }</span>
+                        <span class="cov0" title="0">log.Error("problems finding comics", "error", err)
+                        http.Error(w, err.Error(), http.StatusInternalServerError)
+                        return</span>
+                }
+
+                <span class="cov0" title="0">response := SearchResponse{
+                        Comics: make([]Comics, 0),
+                        Total:  len(comics),
+                }
+
+                for _, item := range comics </span><span class="cov0" title="0">{
+                        response.Comics = append(response.Comics, Comics{Id: item.ID, Url: item.URL})
+                }</span>
+
+                <span class="cov0" title="0">w.Header().Set("Content-Type", "application/json")
+                if err := json.NewEncoder(w).Encode(response); err != nil </span><span class="cov0" title="0">{
+                        log.Error("cannot encode reply", "error", err)
+                        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+                        return
+                }</span>
+
+        }
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package middleware
+
+import (
+        "net/http"
+        "strings"
+)
+
+type TokenVerifier interface {
+        Verify(token string) error
+}
+
+func Auth(next http.HandlerFunc, verifier TokenVerifier) http.HandlerFunc <span class="cov0" title="0">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                token := strings.Fields(r.Header.Get("Authorization"))
+                if len(token) != 2 || token[0] != "Token" </span><span class="cov0" title="0">{
+                        http.Error(w, "bad authorization header", http.StatusUnauthorized)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">if err := verifier.Verify(token[1]); err != nil </span><span class="cov0" title="0">{
+                        http.Error(w, "not authorized", http.StatusUnauthorized)
+                        return
+
+                }</span>
+
+                <span class="cov0" title="0">next.ServeHTTP(w, r)</span>
+
+        }
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package middleware
+
+import (
+        "net/http"
+)
+
+func Concurrency(next http.HandlerFunc, limit int64) http.HandlerFunc <span class="cov0" title="0">{
+        limiter := make(chan struct{}, limit)
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                select </span>{
+                case limiter &lt;- struct{}{}:<span class="cov0" title="0">
+                        next.ServeHTTP(w, r)
+                        &lt;-limiter</span>
+                default:<span class="cov0" title="0">
+                        http.Error(w, "try later", http.StatusServiceUnavailable)</span>
+                }
+        }
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package middleware
+
+import (
+        "net/http"
+
+        "go.uber.org/ratelimit"
+)
+
+func Rate(next http.HandlerFunc, rps int) http.HandlerFunc <span class="cov0" title="0">{
+        limiter := ratelimit.New(rps)
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                limiter.Take()
+                next.ServeHTTP(w, r)
+
+        }</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
